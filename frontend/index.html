@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Video Stabilizer</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Cricket Video Stabilizer</h1>
+            <p>Upload a shaky cricket video and get a professionally stabilized clip powered by OpenCV.</p>
+        </header>
+
+        <main>
+            <!-- Step 1: Upload -->
+            <div id="upload-section" class="section active">
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-zone-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    </div>
+                    <p>Drag & Drop your video here</p>
+                    <span class="or-divider">or</span>
+                    <input type="file" id="file-input" accept="video/mp4,video/x-m4v,video/*,video/avi" hidden>
+                    <button class="btn primary" id="browse-btn">Browse Files</button>
+                    <p class="file-hint">Supported formats: MP4, AVI, MOV</p>
+                </div>
+            </div>
+
+            <!-- Step 2: Processing state -->
+            <div id="processing-section" class="section">
+                <div class="spinner-container">
+                    <div class="spinner"></div>
+                    <h2>Stabilizing your video...</h2>
+                    <p>This may take a moment depending on the video length.</p>
+                </div>
+            </div>
+
+            <!-- Step 3: Results -->
+            <div id="results-section" class="section">
+                <div class="comparison-container">
+                    <div class="video-card">
+                        <div class="badge original">Original</div>
+                        <video id="raw-video" controls muted loop></video>
+                    </div>
+                    <div class="video-card">
+                        <div class="badge stabilized">Stabilized</div>
+                        <video id="processed-video" controls muted loop></video>
+                    </div>
+                </div>
+                
+                <div class="actions">
+                    <button class="btn outline" id="reset-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+                        Upload Another
+                    </button>
+                    <a id="download-btn" class="btn primary" href="#" download>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Download Stabilized
+                    </a>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <div class="tech-stack">
+                <span class="tech-tag">FastAPI</span>
+                <span class="tech-tag">OpenCV SIFT</span>
+                <span class="tech-tag">Vanilla JS</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>

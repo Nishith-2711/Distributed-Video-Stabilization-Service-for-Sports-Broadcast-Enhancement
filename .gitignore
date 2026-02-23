@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# Model weights
+*.pt
+
+# Runtime folders
+uploads/
+outputs/
+runs/
+videos/
+excess_code
+
+# Logs & temp
+*.log
+*.csv
+
+# OS
+.DS_Store
