@@ -6,10 +6,8 @@ import os
 import shutil
 import uuid
 import subprocess
-from threading import Thread
 from datetime import datetime
-
-from api.stabilizer import TranslationStabilizer
+from api.redis_queue import video_queue, save_job, get_job
 
 app = FastAPI(title="Video Stabilization API")
 
@@ -28,25 +26,8 @@ OUTPUT_DIR = "outputs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# In-memory job store (we will replace with MongoDB later)
+# In-memory job store (temporary fallback cache)
 jobs = {}
-
-
-def process_video(job_id, input_path, output_path):
-    try:
-        jobs[job_id]["status"] = "processing"
-
-        stabilizer = TranslationStabilizer(smoothing_window=30, max_features=300)
-        stabilizer.stabilize(input_path, output_path)
-
-        jobs[job_id]["status"] = "completed"
-        jobs[job_id]["output"] = output_path
-        jobs[job_id]["completed_at"] = str(datetime.utcnow())
-
-    except Exception as e:
-        jobs[job_id]["status"] = "failed"
-        jobs[job_id]["error"] = str(e)
-
 
 @app.post("/api/v1/stabilize")
 async def stabilize_video(file: UploadFile = File(...)):
@@ -81,15 +62,22 @@ async def stabilize_video(file: UploadFile = File(...)):
         shutil.move(temp_input_path, input_path)
 
     # Save job metadata
-    jobs[job_id] = {
+    job_payload = {
         "job_id": job_id,
         "status": "queued",
         "input_video": input_filename,
         "output_video": output_filename,
         "created_at": str(datetime.utcnow()),
     }
+    jobs[job_id] = job_payload
+    save_job(job_id, job_payload)
 
-    Thread(target=process_video, args=(job_id, input_path, output_path)).start()
+    video_queue.enqueue(
+        "api.worker.process_video",
+        job_id,
+        input_path,
+        output_path
+    )
 
     return {
         "job_id": job_id,
@@ -98,9 +86,15 @@ async def stabilize_video(file: UploadFile = File(...)):
 
 @app.get("/api/v1/status/{job_id}")
 def get_status(job_id: str):
-    if job_id not in jobs:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return jobs[job_id]
+    redis_job = get_job(job_id)
+    if redis_job is not None:
+        jobs[job_id] = redis_job
+        return redis_job
+
+    if job_id in jobs:
+        return jobs[job_id]
+
+    raise HTTPException(status_code=404, detail="Job not found")
 
 
 @app.get("/api/v1/video/raw/{filename}")
@@ -118,7 +112,8 @@ def get_processed_video(filename: str):
         raise HTTPException(status_code=404, detail="Video not found")
     return FileResponse(file_path, media_type="video/mp4")
 
-# ==============================
-# 🌐 FRONTEND
-# ==============================
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+@app.get("/")
+def test():
+    return {"status": "ok"}
+
+# app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
