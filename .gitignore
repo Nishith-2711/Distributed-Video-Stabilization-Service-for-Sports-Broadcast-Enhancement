@@ -23,6 +23,7 @@ excess_code
 # Logs & temp
 *.log
 *.csv
+Frontend_skills.md
 
 # OS
 .DS_Store

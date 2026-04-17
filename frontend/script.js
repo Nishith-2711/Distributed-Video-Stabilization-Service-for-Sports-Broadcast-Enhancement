@@ -1,27 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // UI Elements
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const browseBtn = document.getElementById('browse-btn');
-
-    // Sections
-    const uploadSection = document.getElementById('upload-section');
-    const processingSection = document.getElementById('processing-section');
-    const resultsSection = document.getElementById('results-section');
-
-    // Videos
-    const rawVideo = document.getElementById('raw-video');
-    const processedVideo = document.getElementById('processed-video');
-
-    // Actions
-    const resetBtn = document.getElementById('reset-btn');
-    const downloadBtn = document.getElementById('download-btn');
-
-    // Section Management
-    function showSection(section) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        section.classList.add('active');
-    }
+    const jobList = document.getElementById('job-list');
 
     // File Input Trigger
     browseBtn.addEventListener('click', () => fileInput.click());
@@ -29,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target !== browseBtn) fileInput.click();
     });
 
-    // Drag and Drop Events
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
     });
@@ -59,19 +39,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleFiles(files) {
         if (files.length === 0) return;
-        const file = files[0];
-
-        // Basic validation
-        if (!file.type.startsWith('video/')) {
-            alert('Please upload a valid video file.');
-            return;
+        
+        // iterate to support multiple files eventually, but process one-by-one
+        for(let i=0; i<files.length; i++) {
+            const file = files[i];
+            if (!file.type.startsWith('video/')) {
+                alert(`File ${file.name} is not a valid video.`);
+                continue;
+            }
+            uploadVideo(file);
         }
-
-        uploadVideo(file);
     }
 
     async function uploadVideo(file) {
-        showSection(processingSection);
+        // Create initial job card UI
+        const cardId = 'job-' + Date.now();
+        const card = document.createElement('div');
+        card.id = cardId;
+        card.className = 'job-card';
+        card.innerHTML = `
+            <div class="job-header">
+                <strong>${file.name}</strong>
+                <span class="status-badge" id="badge-${cardId}">Uploading...</span>
+            </div>
+            <div class="job-body" id="body-${cardId}">
+                <div class="spinner"></div>
+            </div>
+        `;
+        jobList.prepend(card);
+
+        const badge = document.getElementById(`badge-${cardId}`);
+        const body = document.getElementById(`body-${cardId}`);
 
         const formData = new FormData();
         formData.append('file', file);
@@ -88,41 +86,66 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
+            const jobId = data.job_id;
 
-            // Set video sources
-            rawVideo.src = data.original_video_url;
-            processedVideo.src = data.stabilized_video_url;
+            badge.innerText = 'Queued';
 
-            // Set download link
-            downloadBtn.href = data.stabilized_video_url;
+            // Poll for status
+            let jobStatus = data.status;
+            let jobData = data;
+            
+            while (jobStatus === "queued" || jobStatus === "processing") {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                badge.innerText = jobStatus === "processing" ? "Stabilizing..." : "Queued";
+                
+                const statusResponse = await fetch(`/api/v1/status/${jobId}`);
+                if (!statusResponse.ok) {
+                    throw new Error("Failed to check status");
+                }
+                jobData = await statusResponse.json();
+                jobStatus = jobData.status;
 
-            // Show results
-            showSection(resultsSection);
+                if (jobStatus === "failed") {
+                    throw new Error(jobData.error || 'Video processing failed');
+                }
+            }
 
-            // Sync playback behavior (optional enhancement)
-            syncVideos();
+            // Completed! Update the card to show results
+            badge.innerText = 'Completed';
+            badge.classList.add('success');
+            
+            const rawUrl = `/api/v1/video/raw/${jobData.input_video}`;
+            const processedUrl = `/api/v1/video/processed/${jobData.output_video}`;
+
+            body.innerHTML = `
+                <div class="comparison-container-small">
+                    <div>
+                        <div style="font-size: 0.8rem; margin-bottom: 4px;">Original</div>
+                        <video src="${rawUrl}" controls muted loop style="width:100%; border-radius: 8px; border: 1px solid #334155;"></video>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8rem; margin-bottom: 4px; color: #10b981;">Stabilized</div>
+                        <video src="${processedUrl}" controls muted loop style="width:100%; border-radius: 8px; border: 1px solid #334155;"></video>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                    <a href="${processedUrl}" download class="btn primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Download Stabilized</a>
+                </div>
+            `;
+
+            // Auto-play sync for this specific card
+            const videos = body.querySelectorAll('video');
+            if (videos.length === 2) {
+                const [v1, v2] = videos;
+                v1.addEventListener('play', () => v2.play());
+                v1.addEventListener('pause', () => v2.pause());
+                v1.addEventListener('seeked', () => { v2.currentTime = v1.currentTime; });
+            }
 
         } catch (error) {
-            alert('Error: ' + error.message);
-            showSection(uploadSection);
+            badge.innerText = 'Failed';
+            badge.classList.add('error');
+            body.innerHTML = `<p style="color: #ef4444; font-size: 0.9rem;">${error.message}</p>`;
         }
     }
-
-    function syncVideos() {
-        rawVideo.addEventListener('play', () => processedVideo.play());
-        rawVideo.addEventListener('pause', () => processedVideo.pause());
-        rawVideo.addEventListener('seeked', () => {
-            processedVideo.currentTime = rawVideo.currentTime;
-        });
-
-        // Unmute processed but keep raw muted so we only hear one audio track if any.
-        // Or keep both muted if it's purely a visual demo.
-    }
-
-    resetBtn.addEventListener('click', () => {
-        rawVideo.src = '';
-        processedVideo.src = '';
-        fileInput.value = '';
-        showSection(uploadSection);
-    });
 });

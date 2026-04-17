@@ -112,8 +112,8 @@ def get_processed_video(filename: str):
         raise HTTPException(status_code=404, detail="Video not found")
     return FileResponse(file_path, media_type="video/mp4")
 
-@app.get("/")
-def test():
-    return {"status": "ok"}
+# @app.get("/")
+# def test():
+#     return {"status": "ok"}
 
-# app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
