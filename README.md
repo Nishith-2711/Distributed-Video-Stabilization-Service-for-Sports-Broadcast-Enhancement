@@ -2,6 +2,7 @@
 
 A web service that removes camera shake from cricket footage using computer vision. Upload a shaky clip, get back a stabilized video — processing runs asynchronously in the background so the UI stays responsive.
 
+> **Add a demo GIF here** — record a before/after comparison with Loom or ScreenToGif and drop it in.
 
 ---
 

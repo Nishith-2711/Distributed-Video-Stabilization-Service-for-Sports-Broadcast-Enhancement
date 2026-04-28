@@ -6,18 +6,27 @@ def process_video(job_id, input_path, output_path):
     try:
         update_job(job_id, {
             "status": "processing",
+            "progress": 0,
             "started_at": str(datetime.utcnow())
         })
-        print(f"[JOB {job_id}] started")
+
+        def progress_callback(p):
+            update_job(job_id, {
+                "progress": p
+            })
 
         stabilizer = TranslationStabilizer(smoothing_window=30, max_features=300)
-        stabilizer.stabilize(input_path, output_path)
+        stabilizer.stabilize(
+            input_path,
+            output_path,
+            progress_callback=progress_callback
+        )
 
         update_job(job_id, {
             "status": "completed",
+            "progress": 100,
             "completed_at": str(datetime.utcnow())
         })
-        print(f"[JOB {job_id}] completed")
 
     except Exception as e:
         update_job(job_id, {
@@ -25,4 +34,3 @@ def process_video(job_id, input_path, output_path):
             "error": str(e),
             "failed_at": str(datetime.utcnow())
         })
-        print(f"[JOB {job_id}] failed: {e}")

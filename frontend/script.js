@@ -2,7 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const browseBtn = document.getElementById('browse-btn');
-    const jobList = document.getElementById('job-list');
+    const processingList = document.getElementById('processing-list');
+    const completedList = document.getElementById('completed-list');
 
     // File Input Trigger
     browseBtn.addEventListener('click', () => fileInput.click());
@@ -52,8 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function uploadVideo(file) {
-        // Create initial job card UI
-        const cardId = 'job-' + Date.now();
+        // Create initial job card UI, ensure unique ID for simultaneous uploads
+        const cardId = 'job-' + Date.now() + '-' + Math.round(Math.random() * 10000);
         const card = document.createElement('div');
         card.id = cardId;
         card.className = 'job-card';
@@ -62,11 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <strong>${file.name}</strong>
                 <span class="status-badge" id="badge-${cardId}">Uploading...</span>
             </div>
+
             <div class="job-body" id="body-${cardId}">
-                <div class="spinner"></div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-${cardId}"></div>
+                </div>
             </div>
         `;
-        jobList.prepend(card);
+        processingList.prepend(card);
 
         const badge = document.getElementById(`badge-${cardId}`);
         const body = document.getElementById(`body-${cardId}`);
@@ -96,23 +100,40 @@ document.addEventListener('DOMContentLoaded', () => {
             
             while (jobStatus === "queued" || jobStatus === "processing") {
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                badge.innerText = jobStatus === "processing" ? "Stabilizing..." : "Queued";
-                
+
                 const statusResponse = await fetch(`/api/v1/status/${jobId}`);
                 if (!statusResponse.ok) {
                     throw new Error("Failed to check status");
                 }
+
                 jobData = await statusResponse.json();
                 jobStatus = jobData.status;
+
+                const progress = jobData.progress || 0;
+
+                const progressBar = document.getElementById(`progress-${cardId}`);
+                const progressText = document.getElementById(`progress-text-${cardId}`);
+
+                if (progressBar) progressBar.style.width = progress + "%";
+                if (progressText) progressText.innerText = progress + "%";
+
+                if (jobStatus === "processing") {
+                    badge.innerText = `Processing (${progress}%)`;
+                } else {
+                    badge.innerText = "Queued";
+                }
 
                 if (jobStatus === "failed") {
                     throw new Error(jobData.error || 'Video processing failed');
                 }
             }
 
-            // Completed! Update the card to show results
             badge.innerText = 'Completed';
+            completedList.prepend(card);
             badge.classList.add('success');
+
+            const progressBar = document.getElementById(`progress-${cardId}`);
+            if (progressBar) progressBar.style.width = "100%";
             
             const rawUrl = `/api/v1/video/raw/${jobData.input_video}`;
             const processedUrl = `/api/v1/video/processed/${jobData.output_video}`;

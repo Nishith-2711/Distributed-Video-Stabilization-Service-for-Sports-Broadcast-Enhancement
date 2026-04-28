@@ -7,7 +7,7 @@ import shutil
 import uuid
 import subprocess
 from datetime import datetime
-from api.redis_queue import video_queue, save_job, get_job
+from api.redis_queue import video_queue, save_job, get_job, list_jobs
 
 app = FastAPI(title="Video Stabilization API")
 
@@ -30,7 +30,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 jobs = {}
 
 @app.post("/api/v1/stabilize")
-async def stabilize_video(file: UploadFile = File(...)):
+def stabilize_video(file: UploadFile = File(...)):
     if not file.filename.endswith((".mp4", ".avi", ".mov")):
         raise HTTPException(status_code=400, detail="Invalid file type")
 
@@ -111,6 +111,10 @@ def get_processed_video(filename: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Video not found")
     return FileResponse(file_path, media_type="video/mp4")
+
+@app.get("/api/v1/jobs")
+def get_all_jobs():
+    return list_jobs()
 
 # @app.get("/")
 # def test():

@@ -37,3 +37,14 @@ def update_job(job_id: str, updates: dict):
     current.update(updates)
     save_job(job_id, current)
     return current
+
+def list_jobs():
+    keys = redis_conn.keys("video-job:*")
+    jobs = []
+
+    for key in keys:
+        raw = redis_conn.get(key)
+        if raw:
+            jobs.append(json.loads(raw))
+
+    return jobs

@@ -75,7 +75,7 @@ class TranslationStabilizer:
         smoothed[:, 1] = gaussian_filter1d(trajectory[:, 1], sigma=sigma)
         return smoothed
 
-    def stabilize(self, input_path, output_path, crop_ratio=0.90):
+    def stabilize(self, input_path, output_path, crop_ratio=0.90, progress_callback=None):
         """
         Stabilize video by correcting translation only.
         Writes output and returns the output path upon completion.
@@ -104,6 +104,7 @@ class TranslationStabilizer:
         transforms = []
 
         # 1. Track Camera Motion
+        frame_idx = 1
         while True:
             ret, curr_frame = cap.read()
             if not ret:
@@ -115,6 +116,12 @@ class TranslationStabilizer:
             transforms.append([dx, dy])
 
             prev_gray = curr_gray
+
+            # Report progress every 10 frames (0-50% for Tracking)
+            if frame_idx % 10 == 0 and progress_callback:
+                progress = int((frame_idx / n_frames) * 50)
+                progress_callback(min(49, progress)) # max 49%
+            frame_idx += 1
 
         transforms = np.array(transforms)
 
@@ -129,6 +136,8 @@ class TranslationStabilizer:
 
         # 3. Apply Stabilization
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+        total_frames = len(transforms_smooth)
         
         for i in range(len(transforms_smooth)):
             ret, frame = cap.read()
@@ -136,6 +145,12 @@ class TranslationStabilizer:
                 break
 
             dx, dy = transforms_smooth[i]
+
+            # Report progress every 10 frames (50-100% for Stabilizing)
+            if i % 10 == 0 and progress_callback:
+                progress = 50 + int((i / total_frames) * 50)
+                progress_callback(progress)
+
             T = np.float32([[1, 0, dx], [0, 1, dy]])
 
             frame_stabilized = cv2.warpAffine(
