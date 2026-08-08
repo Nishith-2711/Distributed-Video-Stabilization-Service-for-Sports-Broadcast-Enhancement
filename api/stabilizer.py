@@ -1,9 +1,10 @@
-import cv2
-import numpy as np
-import time
-from scipy.ndimage import gaussian_filter1d
 import os
 import subprocess
+
+import cv2
+import numpy as np
+from scipy.ndimage import gaussian_filter1d
+
 
 class TranslationStabilizer:
     """
@@ -20,7 +21,7 @@ class TranslationStabilizer:
         try:
             self.detector = cv2.SIFT_create(nfeatures=max_features)
             self.use_sift = True
-        except:
+        except Exception:  # noqa: BLE001
             self.detector = cv2.ORB_create(nfeatures=max_features)
             self.use_sift = False
 
@@ -179,7 +180,7 @@ class TranslationStabilizer:
             ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if os.path.exists(temp_output_path):
                 os.remove(temp_output_path)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"FFmpeg conversion failed: {e}")
             if os.path.exists(temp_output_path):
                 os.rename(temp_output_path, output_path)

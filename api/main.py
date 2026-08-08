@@ -1,13 +1,15 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import os
 import shutil
-import uuid
 import subprocess
-from datetime import datetime
-from api.redis_queue import video_queue, save_job, get_job, list_jobs
+import uuid
+from datetime import datetime, timezone
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from api.redis_queue import get_job, list_jobs, save_job, video_queue
 
 app = FastAPI(title="Video Stabilization API")
 
@@ -30,7 +32,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 jobs = {}
 
 @app.post("/api/v1/stabilize")
-def stabilize_video(file: UploadFile = File(...)):
+def stabilize_video(file: UploadFile = File(...)):  # noqa: B008
     if not file.filename.endswith((".mp4", ".avi", ".mov")):
         raise HTTPException(status_code=400, detail="Invalid file type")
 
@@ -57,7 +59,7 @@ def stabilize_video(file: UploadFile = File(...)):
 
         os.remove(temp_input_path)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"FFmpeg failed: {e}")
         shutil.move(temp_input_path, input_path)
 
@@ -67,7 +69,7 @@ def stabilize_video(file: UploadFile = File(...)):
         "status": "queued",
         "input_video": input_filename,
         "output_video": output_filename,
-        "created_at": str(datetime.utcnow()),
+        "created_at": str(datetime.now(timezone.utc)),
     }
     jobs[job_id] = job_payload
     save_job(job_id, job_payload)
