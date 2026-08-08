@@ -28,8 +28,8 @@ COPY . .
 # Make startup script executable
 RUN chmod +x start.sh
 
-# Expose port (Hugging Face Spaces uses 7860)
-EXPOSE 7860
+# Expose port (matches docker-compose.yml and README)
+EXPOSE 8000
 
 # Run startup script
 CMD ["./start.sh"]

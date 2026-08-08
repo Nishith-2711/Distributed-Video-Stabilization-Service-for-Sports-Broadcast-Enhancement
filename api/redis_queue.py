@@ -20,10 +20,16 @@ def _job_key(job_id: str) -> str:
 
 
 def save_job(job_id: str, payload: dict) -> None:
+    """
+    Turns the Python dictionary into a string and saves it in Redis
+    """
     redis_conn.set(_job_key(job_id), json.dumps(payload))
 
 
 def get_job(job_id: str):
+    """
+    Looks up the key in Redis. If it finds text, it converts text to a Python dictionary
+    """
     raw_value = redis_conn.get(_job_key(job_id))
     if raw_value is None:
         return None
@@ -31,6 +37,9 @@ def get_job(job_id: str):
 
 
 def update_job(job_id: str, updates: dict):
+    """
+    Retrieves the current job data using get_job(), updates the specific fields you provide, and then saves the result back to Redis.
+    """
     current = get_job(job_id)
     if current is None:
         current = {"job_id": job_id}
@@ -39,6 +48,9 @@ def update_job(job_id: str, updates: dict):
     return current
 
 def list_jobs():
+    """
+    Looks for any key in Redis that starts with video-job:
+    """
     keys = redis_conn.keys("video-job:*")
     jobs = []
 

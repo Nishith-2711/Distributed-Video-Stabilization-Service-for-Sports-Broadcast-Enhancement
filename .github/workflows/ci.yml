@@ -1,0 +1,37 @@
+# Runs on every push and PR. Lints, then runs the pytest suite
+# (tests/test_stabilizer.py) against the real api/ code — no Docker,
+# no AWS needed. This is the fast feedback loop.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python deps
+        run: |
+          pip install -r requirements.txt
+          pip install pytest ruff
+
+      - name: Lint (ruff)
+        run: ruff check api/ --output-format=github
+        continue-on-error: true # remove once the codebase is ruff-clean
+
+      - name: Run tests
+        run: pytest tests/ -v

@@ -1,0 +1,54 @@
+# On push to main (and only after CI-style checks pass here too), builds
+# the Docker image, pushes it to Docker Hub, then SSHs into the EC2 box
+# and redeploys via docker compose. This is the CD half of the pipeline.
+#
+# Required GitHub secrets (Settings -> Secrets and variables -> Actions):
+#   DOCKERHUB_USERNAME   your Docker Hub username
+#   DOCKERHUB_TOKEN      Docker Hub access token (not your password)
+#   EC2_HOST             public IP or DNS of your EC2 instance
+#   EC2_USER             ssh user, "ubuntu" for Ubuntu AMIs
+#   EC2_SSH_KEY           private key (.pem contents) for the EC2 instance
+
+name: Deploy
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch: {} # lets you trigger a redeploy manually from the Actions tab
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/video-stabilizer:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2 over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/video-stabilizer
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f

@@ -1,0 +1,40 @@
+# Difference from the dev compose file: uses the prebuilt image pushed by
+# GitHub Actions (image: ...) instead of building locally (build: .).
+# This is what deploy.yml pulls and runs on the EC2 box.
+#
+# On the EC2 instance, create a .env file next to this with:
+#   DOCKERHUB_USERNAME=your-dockerhub-username
+
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  api:
+    image: ${DOCKERHUB_USERNAME}/video-stabilizer:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+
+  worker:
+    image: ${DOCKERHUB_USERNAME}/video-stabilizer:latest
+    restart: unless-stopped
+    command: rq worker video-processing --url redis://redis:6379
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
