@@ -7,8 +7,6 @@ A web service that removes camera shake from cricket footage using computer visi
 
 **Live demo:** [http://18.119.12.199:8000](http://18.119.12.199:8000) — running on a single AWS EC2 instance; may occasionally be down for redeploys or if the instance is stopped to save free-tier hours.
 
-> **Add a demo GIF here** — record a before/after comparison with Loom or ScreenToGif and drop it in.
-
 ---
 
 ## How It Works
