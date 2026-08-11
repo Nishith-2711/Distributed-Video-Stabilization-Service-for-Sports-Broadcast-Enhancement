@@ -1,6 +1,11 @@
 # Cricket Video Stabilizer
 
+[![CI](https://github.com/Nishith-2711/Distributed-Video-Stabilization-Service-for-Sports-Broadcast-Enhancement/actions/workflows/ci.yml/badge.svg)](https://github.com/Nishith-2711/Distributed-Video-Stabilization-Service-for-Sports-Broadcast-Enhancement/actions/workflows/ci.yml)
+[![Deploy](https://github.com/Nishith-2711/Distributed-Video-Stabilization-Service-for-Sports-Broadcast-Enhancement/actions/workflows/deploy.yml/badge.svg)](https://github.com/Nishith-2711/Distributed-Video-Stabilization-Service-for-Sports-Broadcast-Enhancement/actions/workflows/deploy.yml)
+
 A web service that removes camera shake from cricket footage using computer vision. Upload a shaky clip, get back a stabilized video — processing runs asynchronously in the background so the UI stays responsive.
+
+**Live demo:** [http://18.119.12.199:8000](http://18.119.12.199:8000) — running on a single AWS EC2 instance; may occasionally be down for redeploys or if the instance is stopped to save free-tier hours.
 
 > **Add a demo GIF here** — record a before/after comparison with Loom or ScreenToGif and drop it in.
 
@@ -69,6 +74,8 @@ The API and worker are decoupled — the API queues jobs and returns immediately
 | Video I/O | FFmpeg, OpenCV VideoCapture |
 | Frontend | Vanilla JS, HTML/CSS |
 | Containerization | Docker, Docker Compose |
+| CI/CD | GitHub Actions |
+| Cloud | AWS EC2 |
 
 ---
 
@@ -96,13 +103,51 @@ curl http://localhost:8000/api/v1/status/abc-123
 
 ---
 
+## Testing
+
+Unit and integration tests live in `tests/test_stabilizer.py` and run against the real stabilization code — no fixture videos required, since the integration test generates a synthetic clip in-memory. Covers the translation estimation math (including robustness to outlier feature matches), Gaussian trajectory smoothing, and a full end-to-end `stabilize()` run.
+
+```bash
+pip install pytest
+pytest tests/ -v
+```
+
+8 tests, all passing against `api/stabilizer.py`.
+
+---
+
+## CI/CD & Deployment
+
+Every push runs the **CI** workflow (`.github/workflows/ci.yml`): installs dependencies, lints with `ruff`, and runs the full pytest suite.
+
+Every push to `main` additionally runs the **Deploy** workflow (`.github/workflows/deploy.yml`):
+1. Builds the Docker image (with GitHub Actions layer caching)
+2. Pushes it to Docker Hub
+3. SSHs into a production AWS EC2 instance and redeploys via `docker compose pull && up -d`
+
+End-to-end, a push to `main` is live on AWS in well under a minute, with no manual deployment steps.
+
+```mermaid
+flowchart LR
+    A[git push main] --> B[CI: lint + pytest]
+    B --> C[Build Docker image]
+    C --> D[Push to Docker Hub]
+    D --> E[SSH into EC2]
+    E --> F[docker compose pull && up -d]
+    F --> G([Live at :8000])
+```
+
+**Infrastructure:** a single AWS EC2 instance (Ubuntu, t3.micro) runs the three-container stack (`api`, `worker`, `redis`) via `docker-compose.prod.yml`, which pulls the prebuilt image from Docker Hub rather than building on the instance itself. Security group restricts inbound traffic to port 8000 (the app) and port 22 (SSH management).
+
+---
+
 ## Running Locally
 
 **Prerequisites:** Docker and Docker Compose
 
 ```bash
-git clone https://github.com/Nishith-2711/Cricket_video_stabilization
-cd Cricket_video_stabilization
+git clone https://github.com/Nishith-2711/Distributed-Video-Stabilization-Service-for-Sports-Broadcast-Enhancement.git
+cd Distributed-Video-Stabilization-Service-for-Sports-Broadcast-Enhancement
 docker compose up --build
 ```
 
@@ -138,7 +183,14 @@ Supported input formats: `.mp4`, `.avi`, `.mov`
 │   ├── index.html
 │   ├── script.js        # Upload, polling, side-by-side playback
 │   └── styles.css
-├── docker-compose.yml
+├── tests/
+│   └── test_stabilizer.py  # pytest suite (unit + integration)
+├── .github/
+│   └── workflows/
+│       ├── ci.yml        # lint + test on every push
+│       └── deploy.yml    # build, push, deploy to AWS on push to main
+├── docker-compose.yml       # local dev (builds image locally)
+├── docker-compose.prod.yml  # production (pulls prebuilt image, used on EC2)
 ├── Dockerfile
 └── requirements.txt
 ```
